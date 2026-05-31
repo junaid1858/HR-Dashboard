@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR Analytics Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f5f7;--surface:#fff;--surface2:#f9fafb;--border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.13);
+  --text:#1c2030;--text2:#5b6478;--text3:#9aa0b0;
+  --navy:#0f2744;--navy2:#1a3a5c;--navy-light:#e8edf5;
+  --green:#1a9e6e;--green-bg:#e6f7f0;--green-txt:#0d5c3f;
+  --red:#c0392b;--red-bg:#fdf0ef;--red-txt:#7a1f1f;
+  --amber:#b06d10;--amber-bg:#fdf3e3;--amber-txt:#6b3f08;
+  --blue:#1a5fa5;--blue-bg:#eaf2fb;--blue-txt:#0c3d72;
+  --purple:#5240b0;--purple-bg:#f0eefb;--purple-txt:#312475;
+  --teal:#0f7c6a;--teal-bg:#e5f5f1;--teal-txt:#084d40;
+  --radius:10px;--radius-lg:14px;
+  --shadow:0 1px 3px rgba(0,0,0,0.07),0 4px 12px rgba(0,0,0,0.05);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;background:var(--bg);color:var(--text);min-height:100vh}
+
+.topbar{background:var(--navy);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:200}
+.topbar-l{display:flex;align-items:center;gap:10px}
+.logo{width:28px;height:28px;background:rgba(255,255,255,0.15);border-radius:6px;display:flex;align-items:center;justify-content:center}
+.logo i{color:#fff;font-size:15px}
+.dash-name{color:#fff;font-size:14px;font-weight:600}
+.dash-sub{color:rgba(255,255,255,0.5);font-size:11px;margin-left:12px}
+.topbar-r{display:flex;align-items:center;gap:8px}
+.btn-ghost{display:flex;align-items:center;gap:5px;padding:6px 12px;background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit}
+.btn-ghost:hover{background:rgba(255,255,255,0.2)}
+.btn-white{display:flex;align-items:center;gap:5px;padding:6px 12px;background:#fff;color:var(--navy);border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-white:hover{background:#eef1f7}
+
+.kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+.kpi-tile{background:var(--surface);padding:13px 18px}
+.kpi-tile-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.kpi-tile-val{font-size:22px;font-weight:700;color:var(--text);line-height:1;letter-spacing:-.02em}
+.kpi-tile-sub{font-size:10px;margin-top:3px}
+.tag-up{color:var(--green);font-weight:600}
+.tag-dn{color:var(--red);font-weight:600}
+.tag-neu{color:var(--text3)}
+
+.upload-banner{background:var(--surface);border:1.5px dashed var(--border2);border-radius:var(--radius-lg);padding:28px;text-align:center;margin:18px 18px 0}
+.upload-banner i{font-size:28px;color:var(--text3);display:block;margin-bottom:8px}
+.upload-banner p{font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6;max-width:500px;margin-left:auto;margin-right:auto}
+.link-btn{background:none;border:none;color:var(--blue);cursor:pointer;font-size:11px;text-decoration:underline;font-family:inherit}
+
+.grid-wrap{padding:18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;align-items:start}
+
+.card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;transition:box-shadow .2s,border-color .2s}
+.card:not(.open){cursor:pointer}
+.card:not(.open):hover{box-shadow:0 4px 20px rgba(0,0,0,0.1);border-color:var(--border2)}
+.card.open{border-color:var(--navy);box-shadow:0 6px 28px rgba(15,39,68,0.13);grid-column:1/-1}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;user-select:none;cursor:pointer}
+.card-header-l{display:flex;align-items:center;gap:10px}
+.card-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.card-icon i{font-size:17px}
+.card-title{font-size:13px;font-weight:600;color:var(--text)}
+.card-subtitle{font-size:11px;color:var(--text3);margin-top:1px}
+.card-chevron{width:26px;height:26px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;transition:transform .3s,background .15s;flex-shrink:0}
+.card-chevron i{font-size:14px;color:var(--text2)}
+.card.open .card-chevron{transform:rotate(180deg);background:var(--navy-light)}
+.card.open .card-chevron i{color:var(--navy)}
+
+.card-preview{padding:0 16px 14px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.card.open .card-preview{display:none}
+.preview-num{font-size:28px;font-weight:700;color:var(--text);letter-spacing:-.02em;line-height:1}
+.preview-lbl{font-size:10px;color:var(--text3);margin-top:2px}
+.preview-stats{display:flex;flex-direction:column;gap:5px}
+.preview-stat{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:11px}
+.preview-stat-lbl{color:var(--text3)}
+.preview-stat-val{font-weight:600;color:var(--text)}
+
+.card-detail{display:none;border-top:1px solid var(--border);animation:slideDown .3s ease}
+.card.open .card-detail{display:block}
+@keyframes slideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.detail-inner{padding:18px}
+
+.d-row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.d-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
+.d-gap{margin-bottom:14px}
+.d-kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:16px}
+.d-kpi{background:var(--surface2);border-radius:8px;padding:10px 13px;border-left:3px solid var(--navy)}
+.d-kpi.red{border-left-color:var(--red)}.d-kpi.grn{border-left-color:var(--green)}.d-kpi.amb{border-left-color:var(--amber)}
+.d-kpi-lbl{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+.d-kpi-val{font-size:18px;font-weight:700;color:var(--text);line-height:1}
+.d-kpi-sub{font-size:10px;color:var(--text3);margin-top:2px}
+
+.d-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.d-ph{padding:8px 13px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.d-ph-title{font-size:11px;font-weight:600;color:var(--text);text-transform:uppercase;letter-spacing:.05em}
+.d-badge{font-size:10px;padding:2px 8px;border-radius:10px;background:var(--amber-bg);color:var(--amber-txt)}
+.d-badge-blue{background:var(--blue-bg);color:var(--blue-txt)}
+
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:6px 11px;text-align:left;font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;background:var(--surface2);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:6px 11px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--surface2)}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+th.num{text-align:right}
+
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.pg{background:var(--green-bg);color:var(--green-txt)}
+.pr{background:var(--red-bg);color:var(--red-txt)}
+.pb{background:var(--blue-bg);color:var(--blue-txt)}
+.pa{background:var(--amber-bg);color:var(--amber-txt)}
+.pp{background:var(--purple-bg);color:var(--purple-txt)}
+
+.bar-row{display:flex;align-items:center;gap:8px;padding:5px 13px;border-bottom:1px solid var(--border)}
+.bar-row:last-child{border-bottom:none}
+.bar-lbl{width:110px;font-size:10px;color:var(--text2);flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-bg{flex:1;height:8px;background:var(--bg);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;transition:width .5s ease}
+.bar-num{width:50px;text-align:right;font-weight:600;font-size:11px;color:var(--text)}
+.bar-pct{width:30px;text-align:right;font-size:10px;color:var(--text3)}
+
+.stat-grid{display:grid;grid-template-columns:1fr 1fr}
+.stat-cell{padding:9px 13px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.stat-cell:nth-child(even){border-right:none}
+.stat-cell:nth-last-child(-n+2){border-bottom:none}
+.stat-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.stat-val{font-size:13px;font-weight:600;color:var(--text)}
+
+.cw{position:relative;width:100%;padding:12px 13px}
+.leg{display:flex;flex-wrap:wrap;gap:10px;padding:0 13px 10px;font-size:10px;color:var(--text2)}
+.leg span{display:flex;align-items:center;gap:4px}
+.leg-dot{width:8px;height:8px;border-radius:2px;display:inline-block;flex-shrink:0}
+
+.footer{text-align:center;padding:20px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);margin-top:10px}
+
+@media(max-width:700px){
+  .d-row2,.d-row3{grid-template-columns:1fr}
+  .grid-wrap{grid-template-columns:1fr;padding:12px}
+  .kpi-strip{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-l">
+    <div class="logo"><i class="ti ti-chart-infographic"></i></div>
+    <span class="dash-name">HR Analytics Dashboard</span>
+    <span class="dash-sub" id="dstat">No data loaded</span>
+  </div>
+  <div class="topbar-r">
+    <button class="btn-ghost" onclick="document.getElementById('fi').click()"><i class="ti ti-upload" style="font-size:12px"></i> Upload data</button>
+    <button class="btn-white" onclick="loadDemo()"><i class="ti ti-player-play" style="font-size:12px"></i> Demo data</button>
+    <input type="file" id="fi" accept=".csv,.xlsx,.xls" onchange="handleFile(event)" style="display:none">
+  </div>
+</div>
+
+<!-- KPI STRIP -->
+<div class="kpi-strip">
+  <div class="kpi-tile"><div class="kpi-tile-lbl">Total headcount</div><div class="kpi-tile-val" id="k-hc">—</div><div class="kpi-tile-sub tag-neu" id="k-hc-sub">upload data</div></div>
+  <div class="kpi-tile"><div class="kpi-tile-lbl">Total payroll (monthly)</div><div class="kpi-tile-val" id="k-pay">—</div><div class="kpi-tile-sub tag-neu">gross salary</div></div>
+  <div class="kpi-tile"><div class="kpi-tile-lbl">Avg monthly salary</div><div class="kpi-tile-val" id="k-ctc">—</div><div class="kpi-tile-sub tag-neu">per employee</div></div>
+  <div class="kpi-tile"><div class="kpi-tile-lbl">Female ratio</div><div class="kpi-tile-val" id="k-fem">—</div><div class="kpi-tile-sub" id="k-fem-sub" class="tag-neu">—</div></div>
+  <div class="kpi-tile"><div class="kpi-tile-lbl">Permanent staff</div><div class="kpi-tile-val" id="k-perm">—</div><div class="kpi-tile-sub tag-neu" id="k-perm-sub">—</div></div>
+  <div class="kpi-tile"><div class="kpi-tile-lbl">Departments</div><div class="kpi-tile-val" id="k-dept">—</div><div class="kpi-tile-sub tag-neu">active</div></div>
+</div>
+
+<!-- UPLOAD BANNER -->
+<div class="upload-banner" id="uz">
+  <i class="ti ti-file-spreadsheet"></i>
+  <p>Upload your employee Excel or CSV file to populate all analytics.<br>
+  Detected columns from your file: <strong>Department, Monthly Gross Salary, Gender, DOB, Grade, Joining Date, Employee Type, Location, Division, Business Unit.</strong></p>
+  <button class="btn-white" style="margin:0 auto;background:var(--navy);color:#fff" onclick="document.getElementById('fi').click()">
+    <i class="ti ti-upload" style="font-size:12px"></i> Choose file
+  </button>
+  <p style="font-size:11px;color:var(--text3);margin-top:8px">Or <button class="link-btn" onclick="loadDemo()">load demo data</button> to preview</p>
+</div>
+
+<!-- CARD GRID -->
+<div class="grid-wrap" id="card-grid" style="display:none">
+
+  <!-- 1. HEADCOUNT & WORKFORCE -->
+  <div class="card" id="card-headcount">
+    <div class="card-header" onclick="toggle('headcount')">
+      <div class="card-header-l">
+        <div class="card-icon" style="background:#e8edf5"><i class="ti ti-users" style="color:#0f2744"></i></div>
+        <div><div class="card-title">Headcount & Workforce</div><div class="card-subtitle">Composition, type & division</div></div>
+      </div>
+      <div class="card-chevron"><i class="ti ti-chevron-down"></i></div>
+    </div>
+    <div class="card-preview">
+      <div><div class="preview-num" id="p-hc">—</div><div class="preview-lbl">Total employees</div></div>
+      <div class="preview-stats">
+        <div class="preview-stat"><span class="preview-stat-lbl">Permanent</span><span class="preview-stat-val" id="p-perm">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">Temporary</span><span class="preview-stat-val" id="p-temp">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">Probationary</span><span class="preview-stat-val" id="p-prob">—</span></div>
+      </div>
+    </div>
+    <div class="card-detail"><div class="detail-inner">
+      <div class="d-kpi-row" id="hc-kpi"></div>
+      <div class="d-panel d-gap">
+        <div class="d-ph"><span class="d-ph-title">Headcount by department</span></div>
+        <div id="dept-bars"></div>
+      </div>
+      <div class="d-row2">
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Employee type breakdown</span></div><div id="type-bars"></div></div>
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Division breakdown</span></div><div id="div-bars"></div></div>
+      </div>
+      <div class="d-row2">
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Business unit</span></div><div id="bu-bars"></div></div>
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Monthly joining trend</span></div><div class="cw" style="height:180px"><canvas id="joinChart" role="img" aria-label="Monthly joining trend">Data.</canvas></div></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 2. DEMOGRAPHICS -->
+  <div class="card" id="card-demographics">
+    <div class="card-header" onclick="toggle('demographics')">
+      <div class="card-header-l">
+        <div class="card-icon" style="background:#eaf2fb"><i class="ti ti-id-badge" style="color:#1a5fa5"></i></div>
+        <div><div class="card-title">Demographics</div><div class="card-subtitle">Age, tenure, location & religion</div></div>
+      </div>
+      <div class="card-chevron"><i class="ti ti-chevron-down"></i></div>
+    </div>
+    <div class="card-preview">
+      <div><div class="preview-num" id="p-avgage">—</div><div class="preview-lbl">Average age</div></div>
+      <div class="preview-stats">
+        <div class="preview-stat"><span class="preview-stat-lbl">Under 30</span><span class="preview-stat-val" id="p-u30">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">30–45</span><span class="preview-stat-val" id="p-3045">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">Locations</span><span class="preview-stat-val" id="p-locs">—</span></div>
+      </div>
+    </div>
+    <div class="card-detail"><div class="detail-inner">
+      <div class="d-kpi-row" id="dm-kpi"></div>
+      <div class="d-row2">
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Age distribution</span></div><div id="age-bars"></div></div>
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Tenure distribution</span></div><div id="tenure-bars"></div></div>
+      </div>
+      <div class="d-row2">
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Top locations (headcount)</span></div><div id="loc-bars"></div></div>
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Grade / level distribution</span></div><div id="grade-bars"></div></div>
+      </div>
+      <div class="d-row2">
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Religion</span></div><div id="religion-bars"></div></div>
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Marital status</span></div><div id="marital-bars"></div></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 3. DIVERSITY -->
+  <div class="card" id="card-diversity">
+    <div class="card-header" onclick="toggle('diversity')">
+      <div class="card-header-l">
+        <div class="card-icon" style="background:#f0eefb"><i class="ti ti-heart" style="color:#5240b0"></i></div>
+        <div><div class="card-title">Gender Diversity</div><div class="card-subtitle">Representation by dept & level</div></div>
+      </div>
+      <div class="card-chevron"><i class="ti ti-chevron-down"></i></div>
+    </div>
+    <div class="card-preview">
+      <div><div class="preview-num" id="p-fem">—</div><div class="preview-lbl">Female ratio</div></div>
+      <div class="preview-stats">
+        <div class="preview-stat"><span class="preview-stat-lbl">Male</span><span class="preview-stat-val" id="p-male">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">Female count</span><span class="preview-stat-val" id="p-femcount">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">Senior female</span><span class="preview-stat-val" id="p-sfem">—</span></div>
+      </div>
+    </div>
+    <div class="card-detail"><div class="detail-inner">
+      <div class="d-kpi-row" id="dv-kpi"></div>
+      <div class="d-row2">
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Gender by department</span></div><div class="tbl-wrap"><table><thead><tr><th>Department</th><th class="num">Total</th><th class="num">Male</th><th class="num">Female</th><th>Female %</th></tr></thead><tbody id="gdept-tbl"></tbody></table></div></div>
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Gender by grade</span></div><div class="tbl-wrap"><table><thead><tr><th>Grade</th><th class="num">Total</th><th class="num">Male</th><th class="num">Female</th><th>Female %</th></tr></thead><tbody id="ggrade-tbl"></tbody></table></div></div>
+      </div>
+      <div class="d-panel d-gap"><div class="d-ph"><span class="d-ph-title">Gender diversity index by division</span></div><div class="stat-grid" id="dv-index"></div></div>
+    </div></div>
+  </div>
+
+  <!-- 4. COST & CTC -->
+  <div class="card" id="card-cost">
+    <div class="card-header" onclick="toggle('cost')">
+      <div class="card-header-l">
+        <div class="card-icon" style="background:#fdf3e3"><i class="ti ti-coin" style="color:#b06d10"></i></div>
+        <div><div class="card-title">Cost & Salary</div><div class="card-subtitle">Monthly gross salary analysis</div></div>
+      </div>
+      <div class="card-chevron"><i class="ti ti-chevron-down"></i></div>
+    </div>
+    <div class="card-preview">
+      <div><div class="preview-num" id="p-pay">—</div><div class="preview-lbl">Total monthly (Lac)</div></div>
+      <div class="preview-stats">
+        <div class="preview-stat"><span class="preview-stat-lbl">Avg salary</span><span class="preview-stat-val" id="p-avgctc">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">Median salary</span><span class="preview-stat-val" id="p-medctc">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">Highest dept</span><span class="preview-stat-val" id="p-topdept">—</span></div>
+      </div>
+    </div>
+    <div class="card-detail"><div class="detail-inner">
+      <div class="d-kpi-row" id="ct-kpi"></div>
+      <div class="d-panel d-gap">
+        <div class="d-ph"><span class="d-ph-title">Salary breakdown by department</span></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Department</th><th class="num">HC</th><th class="num">Total (Lac/mo)</th><th class="num">Avg (BDT)</th><th class="num">Min (BDT)</th><th class="num">Max (BDT)</th><th class="num">% payroll</th></tr></thead><tbody id="ctc-tbl"></tbody></table></div>
+      </div>
+      <div class="d-row2">
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Avg salary by grade</span></div><div id="ctclvl-bars"></div></div>
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Salary band distribution</span></div><div id="band-bars"></div></div>
+      </div>
+      <div class="d-row2">
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Salary by division</span></div><div id="divsal-bars"></div></div>
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Salary spread (min/avg/max) by dept</span></div><div class="cw" style="height:220px"><canvas id="spreadChart" role="img" aria-label="Salary spread">Data.</canvas></div><div class="leg"><span><span class="leg-dot" style="background:#b5d4f4"></span>Min</span><span><span class="leg-dot" style="background:#1a5fa5"></span>Avg</span><span><span class="leg-dot" style="background:#0c447c"></span>Max</span></div></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 5. HIRING TRENDS -->
+  <div class="card" id="card-hiring">
+    <div class="card-header" onclick="toggle('hiring')">
+      <div class="card-header-l">
+        <div class="card-icon" style="background:#e6f7f0"><i class="ti ti-trending-up" style="color:#1a9e6e"></i></div>
+        <div><div class="card-title">Hiring Trends</div><div class="card-subtitle">Joining patterns & growth</div></div>
+      </div>
+      <div class="card-chevron"><i class="ti ti-chevron-down"></i></div>
+    </div>
+    <div class="card-preview">
+      <div><div class="preview-num" id="p-jointhisyr">—</div><div class="preview-lbl">Joined this year</div></div>
+      <div class="preview-stats">
+        <div class="preview-stat"><span class="preview-stat-lbl">Last 3 months</span><span class="preview-stat-val" id="p-join3m">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">Peak month</span><span class="preview-stat-val" id="p-peakm">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">Top joining dept</span><span class="preview-stat-val" id="p-topdept2">—</span></div>
+      </div>
+    </div>
+    <div class="card-detail"><div class="detail-inner">
+      <div class="d-kpi-row" id="hir-kpi"></div>
+      <div class="d-panel d-gap"><div class="d-ph"><span class="d-ph-title">Monthly joining trend (by year)</span></div><div class="cw" style="height:220px"><canvas id="joinYearChart" role="img" aria-label="Yearly joining trend">Data.</canvas></div><div class="leg" id="join-year-leg"></div></div>
+      <div class="d-row2">
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Joinings by department</span></div><div id="joindept-bars"></div></div>
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Joinings by employee type</span></div><div id="jointype-bars"></div></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 6. SALARY PARITY -->
+  <div class="card" id="card-parity">
+    <div class="card-header" onclick="toggle('parity')">
+      <div class="card-header-l">
+        <div class="card-icon" style="background:#e5f5f1"><i class="ti ti-scale" style="color:#0f7c6a"></i></div>
+        <div><div class="card-title">Salary Parity</div><div class="card-subtitle">Gender pay gap & equity analysis</div></div>
+      </div>
+      <div class="card-chevron"><i class="ti ti-chevron-down"></i></div>
+    </div>
+    <div class="card-preview">
+      <div><div class="preview-num" id="p-gap">—</div><div class="preview-lbl">Gender pay gap</div></div>
+      <div class="preview-stats">
+        <div class="preview-stat"><span class="preview-stat-lbl">Male avg salary</span><span class="preview-stat-val" id="p-mavg">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">Female avg salary</span><span class="preview-stat-val" id="p-favg">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">Parity index</span><span class="preview-stat-val" id="p-pidx">—</span></div>
+      </div>
+    </div>
+    <div class="card-detail"><div class="detail-inner">
+      <div class="d-kpi-row" id="pa-kpi"></div>
+      <div class="d-panel d-gap">
+        <div class="d-ph"><span class="d-ph-title">Gender pay gap by department</span></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Department</th><th class="num">Male avg (BDT)</th><th class="num">Female avg (BDT)</th><th class="num">Gap (BDT)</th><th>Gap %</th><th>Status</th></tr></thead><tbody id="parity-tbl"></tbody></table></div>
+      </div>
+      <div class="d-row2">
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Pay gap by division</span></div><div id="divgap-bars"></div></div>
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Salary by grade (avg)</span></div><div id="gradesal-bars"></div></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 7. FORECAST -->
+  <div class="card" id="card-forecast">
+    <div class="card-header" onclick="toggle('forecast')">
+      <div class="card-header-l">
+        <div class="card-icon" style="background:#eaf2fb"><i class="ti ti-telescope" style="color:#1a5fa5"></i></div>
+        <div><div class="card-title">Forecast & Planning</div><div class="card-subtitle">Headcount & cost projections</div></div>
+      </div>
+      <div class="card-chevron"><i class="ti ti-chevron-down"></i></div>
+    </div>
+    <div class="card-preview">
+      <div><div class="preview-num" id="p-fc12">—</div><div class="preview-lbl">Forecast HC +12m</div></div>
+      <div class="preview-stats">
+        <div class="preview-stat"><span class="preview-stat-lbl">Hire need</span><span class="preview-stat-val" id="p-hireneed">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">Payroll +12m</span><span class="preview-stat-val" id="p-fcpay">—</span></div>
+        <div class="preview-stat"><span class="preview-stat-lbl">Growth rate</span><span class="preview-stat-val" id="p-growrate">—</span></div>
+      </div>
+    </div>
+    <div class="card-detail"><div class="detail-inner">
+      <div class="d-kpi-row" id="fc-kpi"></div>
+      <div class="d-panel d-gap">
+        <div class="d-ph"><span class="d-ph-title">12-month headcount forecast by department</span><span class="d-badge d-badge-blue">Linear trend</span></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Department</th><th class="num">Current</th><th class="num">+3m</th><th class="num">+6m</th><th class="num">+9m</th><th class="num">+12m</th><th>Hire need</th></tr></thead><tbody id="fc-tbl"></tbody></table></div>
+      </div>
+      <div class="d-row2">
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Headcount forecast</span></div><div class="cw" style="height:200px"><canvas id="fcChart" role="img" aria-label="Forecast">Data.</canvas></div><div class="leg"><span><span class="leg-dot" style="background:#1a5fa5"></span>Forecast</span><span><span class="leg-dot" style="background:#c0392b;opacity:.6"></span>Low</span><span><span class="leg-dot" style="background:#1a9e6e;opacity:.6"></span>High</span></div></div>
+        <div class="d-panel"><div class="d-ph"><span class="d-ph-title">Projected payroll cost</span></div><div class="cw" style="height:200px"><canvas id="fcPayChart" role="img" aria-label="Payroll forecast">Data.</canvas></div></div>
+      </div>
+    </div></div>
+  </div>
+
+</div>
+
+<div class="footer" id="footer" style="display:none">HR Analytics Dashboard &nbsp;·&nbsp; Data updates automatically on file upload</div>
+
+<script>
+let D=[];const CI={};
+const MULTI=['#1a5fa5','#1a9e6e','#c0392b','#b06d10','#5240b0','#888780','#0f7c6a','#993556','#1a3a5c','#6b3f08'];
+
+// ── TOGGLE ──
+function toggle(id){
+  const card=document.getElementById('card-'+id);
+  if(!card)return;
+  const isOpen=card.classList.contains('open');
+  if(isOpen){card.classList.remove('open');return;}
+  card.classList.add('open');
+  setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'nearest'}),50);
+  renderCard(id);
+}
+
+// ── FILE HANDLING ──
+function handleFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='csv'){Papa.parse(file,{header:true,skipEmptyLines:true,complete:r=>process(r.data)});}
+  else{const rd=new FileReader();rd.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'binary'});process(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:false}));};rd.readAsBinaryString(file);}
+}
+
+// ── DEMO DATA ──
+function loadDemo(){
+  const deps=['Sales','Operations','Distribution','Finance & Accounts','Tech','Human Resources','Customer Experience','Warehouse & Fulfillment','Admin, Security & IT Support'];
+  const divs=['FMCG Division','Logistics Division','Corporate'];
+  const grades=['X3','X2','X1','1A','1B','2','3','4','5','I'];
+  const gnds=['Male','Female'];
+  const types=['Temporary','Permanent','Probationary'];
+  const locs=['ShopUp HQ','Dhaka','Chittagong','Polashpur','REDX Corporate'];
+  const bus=['Mokam','REDX','ShopUp'];
+  const rels=['Islam','Hindu','Christian'];
+  const mars=['Unmarried','Married'];
+  const rows=[];
+  const baseSal={X3:8000,X2:10000,X1:15000,'1A':20000,'1B':18000,'2':30000,'3':45000,'4':60000,'5':80000,'I':6000};
+  for(let i=1;i<=300;i++){
+    const grade=grades[Math.floor(Math.random()*grades.length)];
+    const dep=deps[Math.floor(Math.random()*deps.length)];
+    const jy=2018+Math.floor(Math.random()*7);const jm=String(1+Math.floor(Math.random()*12)).padStart(2,'0');
+    const doby=1985+Math.floor(Math.random()*20);
+    const sal=Math.round(((baseSal[grade]||8000)+(Math.random()-.3)*(baseSal[grade]||8000)*.4)/100)*100;
+    rows.push({
+      'Employee Code':'EMP'+String(i).padStart(4,'0'),
+      'Department':dep,'Division':divs[Math.floor(Math.random()*divs.length)],
+      'Grade':grade,'Designation':'Staff','Employee Role':'Staff',
+      'Gender':gnds[Math.random()<.9?0:1],
+      'Employee Type':types[Math.floor(Math.random()*types.length)],
+      'Location':locs[Math.floor(Math.random()*locs.length)],
+      'Business Unit':bus[Math.floor(Math.random()*bus.length)],
+      'Joining Date':jy+'-'+jm+'-01',
+      'DOB':doby+'-01-01',
+      'Monthly Gross Salary':sal,
+      'Religion':rels[Math.random()<.85?0:Math.random()<.9?1:2],
+      'Marital Status':mars[Math.random()<.6?0:1],
+      'Section':dep,'Team':dep
+    });
+  }
+  process(rows);
+}
+
+// ── HELPERS ──
+function getCol(r,...keys){
+  for(const k of keys){
+    const f=Object.keys(r).find(rk=>rk.trim()===k);
+    if(f!==undefined&&r[f]!==null&&r[f]!==undefined&&String(r[f]).trim()!==''&&String(r[f]).trim()!=='--')return r[f];
+  }
+  return null;
+}
+function getSalary(r){
+  const keys=['Monthly Gross Salary','Gross Salary','Monthly Salary','Salary','CTC','ctc','Basic Salary','compensation'];
+  for(const k of keys){
+    const f=Object.keys(r).find(rk=>rk.trim()===k);
+    if(f!==undefined){const v=parseFloat(String(r[f]).replace(/[,\s৳$₹]/g,''));if(!isNaN(v)&&v>0)return v;}
+  }
+  return 0;
+}
+function getAge(r){
+  const dob=getCol(r,'DOB','Date of Birth','date_of_birth');
+  if(dob){const d=new Date(dob);if(!isNaN(d)){const y=(new Date()-d)/(1000*60*60*24*365.25);if(y>15&&y<75)return Math.floor(y);}}
+  const a=parseInt(getCol(r,'Age','age')||0);return a>15&&a<75?a:0;
+}
+function getJoinDate(r){return getCol(r,'Joining Date','JoinDate','join_date','DOJ','Join Date');}
+function freq(a){return a.reduce((o,v)=>{if(v)o[v]=(o[v]||0)+1;return o;},{});}
+function avg(a){return a.length?a.reduce((s,b)=>s+b,0)/a.length:0;}
+function sm(a){return a.reduce((s,b)=>s+b,0);}
+function r2(v){return Math.round(v*100)/100;}
+function fmtBDT(v){if(v>=10000000)return r2(v/10000000)+'Cr';if(v>=100000)return r2(v/100000)+'L';if(v>=1000)return r2(v/1000)+'K';return Math.round(v);}
+function mkChart(id,cfg){if(CI[id])CI[id].destroy();const el=document.getElementById(id);if(!el)return;CI[id]=new Chart(el,cfg);}
+function setText(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
+function dkpi(l,v,s,c){return`<div class="d-kpi ${c||''}"><div class="d-kpi-lbl">${l}</div><div class="d-kpi-val">${v}</div>${s?`<div class="d-kpi-sub">${s}</div>`:''}</div>`;}
+
+function barRows(id,data,colorFn,valFmt){
+  const el=document.getElementById(id);if(!el)return;
+  const max=Math.max(...data.map(d=>d.val),1);
+  el.innerHTML=data.slice(0,12).map((d,i)=>{
+    const pct=Math.round(d.val/max*100);
+    const color=colorFn?colorFn(d,i):MULTI[i%MULTI.length];
+    const dispVal=valFmt?valFmt(d.val):d.val.toLocaleString();
+    const totPct=d.tot?Math.round(d.val/d.tot*100):null;
+    return`<div class="bar-row"><span class="bar-lbl" title="${d.lbl}">${d.lbl}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div><span class="bar-num">${dispVal}</span>${totPct!==null?`<span class="bar-pct">${totPct}%</span>`:''}</div>`;
+  }).join('');
+}
+
+// ── GLOBAL STATE ──
+let ACT,SALS,TOTSALARY,AVGSALARY,DEPS,GRADES,DIVS;
+
+function process(raw){
+  D=raw;
+  document.getElementById('dstat').textContent=D.length.toLocaleString()+' employees loaded';
+  document.getElementById('uz').style.display='none';
+  document.getElementById('card-grid').style.display='grid';
+  document.getElementById('footer').style.display='block';
+  buildGlobals();
+  updateStrip();
+  updatePreviews();
+}
+
+function buildGlobals(){
+  ACT=D;// No status column — all records are active employees
+  SALS=ACT.map(r=>getSalary(r)).filter(v=>v>0);
+  TOTSALARY=sm(SALS);
+  AVGSALARY=avg(SALS);
+  DEPS=[...new Set(D.map(r=>getCol(r,'Department','Section','Team','Division')||'Unknown'))].filter(d=>d!=='Unknown').sort();
+  GRADES=[...new Set(D.map(r=>getCol(r,'Grade','Designation','Employee Role')||''))].filter(Boolean).sort();
+  DIVS=[...new Set(D.map(r=>getCol(r,'Division','')||''))].filter(Boolean);
+}
+
+function dAct(d){return ACT.filter(r=>getCol(r,'Department','Section','Team','Division')==d);}
+function dSals(d){return dAct(d).map(r=>getSalary(r)).filter(v=>v>0);}
+
+function updateStrip(){
+  setText('k-hc',ACT.length.toLocaleString());
+  setText('k-hc-sub',DEPS.length+' departments');
+  setText('k-pay',fmtBDT(TOTSALARY));
+  setText('k-ctc',fmtBDT(AVGSALARY));
+  const gns=freq(ACT.map(r=>getCol(r,'Gender','gender')||'Unknown'));
+  const fp=ACT.length?Math.round((gns['Female']||0)/ACT.length*100):0;
+  setText('k-fem',fp+'%');
+  setText('k-fem-sub',(gns['Female']||0)+' female employees');
+  const perm=ACT.filter(r=>(getCol(r,'Employee Type','employment_type')||'').toLowerCase().includes('permanent')).length;
+  setText('k-perm',perm.toLocaleString());
+  setText('k-perm-sub',Math.round(perm/ACT.length*100)+'% of workforce');
+  setText('k-dept',DEPS.length);
+}
+
+function updatePreviews(){
+  // headcount
+  setText('p-hc',ACT.length.toLocaleString());
+  const perm=ACT.filter(r=>(getCol(r,'Employee Type','EmploymentType')||'').toLowerCase().includes('permanent')).length;
+  const temp=ACT.filter(r=>(getCol(r,'Employee Type','EmploymentType')||'').toLowerCase().includes('temporary')).length;
+  const prob=ACT.filter(r=>(getCol(r,'Employee Type','EmploymentType')||'').toLowerCase().includes('probat')).length;
+  setText('p-perm',perm.toLocaleString());setText('p-temp',temp.toLocaleString());setText('p-prob',prob.toLocaleString());
+  // demographics
+  const ages=ACT.map(r=>getAge(r)).filter(v=>v>0);
+  setText('p-avgage',Math.round(avg(ages)||28));
+  setText('p-u30',ages.filter(a=>a<30).length.toLocaleString());
+  setText('p-3045',ages.filter(a=>a>=30&&a<=45).length.toLocaleString());
+  setText('p-locs',[...new Set(ACT.map(r=>getCol(r,'Location','Area')||''))].filter(Boolean).length);
+  // diversity
+  const gns=freq(ACT.map(r=>getCol(r,'Gender','gender')||'Unknown'));
+  const tot=ACT.length||1;
+  const fp=Math.round((gns['Female']||0)/tot*100);const mp=Math.round((gns['Male']||0)/tot*100);
+  setText('p-fem',fp+'%');setText('p-male',mp+'%');setText('p-femcount',(gns['Female']||0).toLocaleString());
+  const seniorGrades=['2','3','4','4A','4B','4C','5','6','7','8','9','10','12','13'];
+  const senFem=ACT.filter(r=>seniorGrades.includes(getCol(r,'Grade','Designation'))&&(getCol(r,'Gender','gender')||'').toLowerCase()==='female').length;
+  const senAll=ACT.filter(r=>seniorGrades.includes(getCol(r,'Grade','Designation'))).length;
+  setText('p-sfem',Math.round(senFem/Math.max(1,senAll)*100)+'%');
+  // cost
+  setText('p-pay',fmtBDT(TOTSALARY));
+  setText('p-avgctc',fmtBDT(AVGSALARY));
+  const med=SALS.slice().sort((a,b)=>a-b)[Math.floor(SALS.length/2)]||0;
+  setText('p-medctc',fmtBDT(med));
+  const ctcByD=DEPS.map(d=>{const s=dSals(d);return{d,a:s.length?avg(s):0};}).sort((a,b)=>b.a-a.a);
+  setText('p-topdept',(ctcByD[0]?.d||'—').split(' ')[0]);
+  // hiring
+  const now=new Date();const thisYear=now.getFullYear();
+  const joinedThisYear=ACT.filter(r=>{const d=getJoinDate(r);return d&&new Date(d).getFullYear()===thisYear;}).length;
+  setText('p-jointhisyr',joinedThisYear.toLocaleString());
+  const join3m=ACT.filter(r=>{const d=getJoinDate(r);if(!d)return false;return(now-new Date(d))/(1000*60*60*24)<90;}).length;
+  setText('p-join3m',join3m.toLocaleString());
+  const mnths=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const joinByM=Array(12).fill(0);ACT.forEach(r=>{const d=getJoinDate(r);if(d){const m=new Date(d).getMonth();if(!isNaN(m))joinByM[m]++;}});
+  const peakIdx=joinByM.indexOf(Math.max(...joinByM));
+  setText('p-peakm',mnths[peakIdx]);
+  const joinByDept=DEPS.map(d=>({d,v:dAct(d).length})).sort((a,b)=>b.v-a.v);
+  setText('p-topdept2',(joinByDept[0]?.d||'—').split(' ')[0]);
+  // parity
+  const maleS=ACT.filter(r=>(getCol(r,'Gender','gender')||'').toLowerCase()==='male').map(r=>getSalary(r)).filter(v=>v>0);
+  const femS=ACT.filter(r=>(getCol(r,'Gender','gender')||'').toLowerCase()==='female').map(r=>getSalary(r)).filter(v=>v>0);
+  const mAvg=avg(maleS);const fAvg=avg(femS);
+  const gap=mAvg&&fAvg?Math.round((mAvg-fAvg)/mAvg*100):0;
+  setText('p-gap',gap+'%');setText('p-mavg',fmtBDT(mAvg));setText('p-favg',fmtBDT(fAvg));
+  setText('p-pidx',r2(1-gap/100));
+  // forecast
+  const fc12=Math.round(ACT.length*1.06);
+  setText('p-fc12',fc12.toLocaleString());
+  setText('p-hireneed',Math.round(ACT.length*.12).toLocaleString());
+  setText('p-fcpay',fmtBDT(TOTSALARY*1.06));
+  setText('p-growrate','+6%');
+}
+
+// ── RENDER EACH CARD ──
+function renderCard(id){
+  if(id==='headcount')renderHeadcount();
+  else if(id==='demographics')renderDemographics();
+  else if(id==='diversity')renderDiversity();
+  else if(id==='cost')renderCost();
+  else if(id==='hiring')renderHiring();
+  else if(id==='parity')renderParity();
+  else if(id==='forecast')renderForecast();
+}
+
+function renderHeadcount(){
+  const perm=ACT.filter(r=>(getCol(r,'Employee Type','EmploymentType')||'').toLowerCase().includes('permanent')).length;
+  const temp=ACT.filter(r=>(getCol(r,'Employee Type','EmploymentType')||'').toLowerCase().includes('temporary')).length;
+  const prob=ACT.filter(r=>(getCol(r,'Employee Type','EmploymentType')||'').toLowerCase().includes('probat')).length;
+  document.getElementById('hc-kpi').innerHTML=
+    dkpi('Total HC',ACT.length.toLocaleString(),'','') +
+    dkpi('Permanent',perm.toLocaleString(),Math.round(perm/ACT.length*100)+'%','grn') +
+    dkpi('Temporary',temp.toLocaleString(),Math.round(temp/ACT.length*100)+'%','amb') +
+    dkpi('Probationary',prob.toLocaleString(),Math.round(prob/ACT.length*100)+'%','') +
+    dkpi('Departments',DEPS.length,'','') +
+    dkpi('Divisions',DIVS.length,'','');
+  // dept bars
+  const deptData=DEPS.map(d=>({lbl:d,val:dAct(d).length,tot:ACT.length})).sort((a,b)=>b.val-a.val);
+  barRows('dept-bars',deptData,(d,i)=>MULTI[i%MULTI.length]);
+  // type bars
+  const typeF=freq(ACT.map(r=>getCol(r,'Employee Type','EmploymentType')||'Unknown'));
+  barRows('type-bars',Object.entries(typeF).sort((a,b)=>b[1]-a[1]).map(([lbl,val])=>({lbl,val,tot:ACT.length})),(d,i)=>['#1a5fa5','#1a9e6e','#b06d10','#c0392b'][i%4]);
+  // division bars
+  const divF=freq(ACT.map(r=>getCol(r,'Division','division')||'Unknown'));
+  barRows('div-bars',Object.entries(divF).sort((a,b)=>b[1]-a[1]).map(([lbl,val])=>({lbl,val,tot:ACT.length})),(d,i)=>MULTI[i%MULTI.length]);
+  // BU bars
+  const buF=freq(ACT.map(r=>getCol(r,'Business Unit','business_unit')||'Unknown'));
+  barRows('bu-bars',Object.entries(buF).sort((a,b)=>b[1]-a[1]).map(([lbl,val])=>({lbl,val,tot:ACT.length})),(d,i)=>MULTI[i%MULTI.length]);
+  // join chart
+  const mnths=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const joinM=Array(12).fill(0);
+  ACT.forEach(r=>{const d=getJoinDate(r);if(d){const m=new Date(d).getMonth();if(!isNaN(m))joinM[m]++;}});
+  mkChart('joinChart',{type:'bar',data:{labels:mnths,datasets:[{label:'Joinings',data:joinM,backgroundColor:'#1a5fa5',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9}}},y:{ticks:{font:{size:9}}}}}});
+}
+
+function renderDemographics(){
+  const ages=ACT.map(r=>getAge(r)).filter(v=>v>0);
+  const avgAge=Math.round(avg(ages)||28);
+  document.getElementById('dm-kpi').innerHTML=
+    dkpi('Avg age',avgAge+' yrs','','') +
+    dkpi('Under 30',ages.filter(a=>a<30).length.toLocaleString(),Math.round(ages.filter(a=>a<30).length/ACT.length*100)+'%','') +
+    dkpi('30–45',ages.filter(a=>a>=30&&a<=45).length.toLocaleString(),Math.round(ages.filter(a=>a>=30&&a<=45).length/ACT.length*100)+'%','') +
+    dkpi('Over 45',ages.filter(a=>a>45).length.toLocaleString(),'','');
+  const aBands=['<20','20–24','25–29','30–34','35–39','40–44','45+'];
+  const aCts=[0,0,0,0,0,0,0];
+  ages.forEach(a=>{if(a<20)aCts[0]++;else if(a<=24)aCts[1]++;else if(a<=29)aCts[2]++;else if(a<=34)aCts[3]++;else if(a<=39)aCts[4]++;else if(a<=44)aCts[5]++;else aCts[6]++;});
+  barRows('age-bars',aBands.map((lbl,i)=>({lbl,val:aCts[i],tot:ages.length})),()=>'#1a5fa5');
+  // tenure
+  const tens=ACT.map(r=>{const d=getJoinDate(r);if(!d)return null;const y=(new Date()-new Date(d))/(1000*60*60*24*365.25);return isNaN(y)?null:y;}).filter(v=>v!==null);
+  const tBands=['<6 mo','6–12 mo','1–2 yrs','2–3 yrs','3–5 yrs','>5 yrs'];const tCts=[0,0,0,0,0,0];
+  tens.forEach(t=>{if(t<0.5)tCts[0]++;else if(t<1)tCts[1]++;else if(t<2)tCts[2]++;else if(t<3)tCts[3]++;else if(t<5)tCts[4]++;else tCts[5]++;});
+  barRows('tenure-bars',tBands.map((lbl,i)=>({lbl,val:tCts[i],tot:tens.length})),()=>'#5240b0');
+  // locations
+  const locF=freq(ACT.map(r=>getCol(r,'Location','Area','location')||'Unknown'));
+  barRows('loc-bars',Object.entries(locF).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([lbl,val])=>({lbl,val,tot:ACT.length})),()=>'#c0392b');
+  // grades
+  const gradeF=freq(ACT.map(r=>getCol(r,'Grade','grade')||'Unknown'));
+  barRows('grade-bars',Object.entries(gradeF).sort((a,b)=>b[1]-a[1]).map(([lbl,val])=>({lbl,val,tot:ACT.length})),()=>'#b06d10');
+  // religion
+  const relF=freq(ACT.map(r=>getCol(r,'Religion','religion')||'Unknown'));
+  barRows('religion-bars',Object.entries(relF).sort((a,b)=>b[1]-a[1]).map(([lbl,val])=>({lbl,val,tot:ACT.length})),()=>'#1a9e6e');
+  // marital
+  const marF=freq(ACT.map(r=>getCol(r,'Marital Status','marital_status')||'Unknown'));
+  barRows('marital-bars',Object.entries(marF).sort((a,b)=>b[1]-a[1]).map(([lbl,val])=>({lbl,val,tot:ACT.length})),(d,i)=>['#1a5fa5','#1a9e6e','#b06d10'][i%3]);
+}
+
+function renderDiversity(){
+  const gns=freq(ACT.map(r=>getCol(r,'Gender','gender')||'Unknown'));
+  const tot=ACT.length||1;
+  const fp=Math.round((gns['Female']||0)/tot*100);const mp=Math.round((gns['Male']||0)/tot*100);
+  document.getElementById('dv-kpi').innerHTML=
+    dkpi('Female',fp+'%',(gns['Female']||0).toLocaleString()+' employees','') +
+    dkpi('Male',mp+'%',(gns['Male']||0).toLocaleString()+' employees','') +
+    dkpi('Gender parity',fp<20?'Critical':fp<30?'Below target':fp<40?'In progress':'On track','',fp<20?'red':fp<30?'red':fp<40?'amb':'grn');
+  // gender by dept
+  document.getElementById('gdept-tbl').innerHTML=DEPS.map(d=>{
+    const rows=dAct(d);const hc=rows.length;
+    const m=rows.filter(r=>(getCol(r,'Gender','gender')||'').toLowerCase()==='male').length;
+    const f=rows.filter(r=>(getCol(r,'Gender','gender')||'').toLowerCase()==='female').length;
+    const fp2=hc?Math.round(f/hc*100):0;
+    return`<tr><td>${d}</td><td class="num">${hc}</td><td class="num">${m}</td><td class="num">${f}</td><td><span class="pill ${fp2<10?'pr':fp2<25?'pa':'pg'}">${fp2}%</span></td></tr>`;
+  }).join('');
+  // gender by grade
+  const topGrades=Object.entries(freq(ACT.map(r=>getCol(r,'Grade','grade')||'?'))).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
+  document.getElementById('ggrade-tbl').innerHTML=topGrades.map(g=>{
+    const rows=ACT.filter(r=>getCol(r,'Grade','grade')==g);const hc=rows.length;
+    const m=rows.filter(r=>(getCol(r,'Gender','gender')||'').toLowerCase()==='male').length;
+    const f=rows.filter(r=>(getCol(r,'Gender','gender')||'').toLowerCase()==='female').length;
+    const fp2=hc?Math.round(f/hc*100):0;
+    return`<tr><td>${g}</td><td class="num">${hc}</td><td class="num">${m}</td><td class="num">${f}</td><td><span class="pill ${fp2<10?'pr':fp2<25?'pa':'pg'}">${fp2}%</span></td></tr>`;
+  }).join('');
+  // diversity index by division
+  document.getElementById('dv-index').innerHTML=DIVS.map(div=>{
+    const rows=ACT.filter(r=>getCol(r,'Division','division')==div);
+    const f=rows.filter(r=>(getCol(r,'Gender','gender')||'').toLowerCase()==='female').length;
+    const fp2=rows.length?Math.round(f/rows.length*100):0;
+    return`<div class="stat-cell"><div class="stat-lbl">${div}</div><div class="stat-val">${fp2}% female (${f} of ${rows.length})</div></div>`;
+  }).join('');
+}
+
+function renderCost(){
+  const totMonthly=TOTSALARY;
+  const totAnnual=TOTSALARY*12;
+  const med=SALS.slice().sort((a,b)=>a-b)[Math.floor(SALS.length/2)]||0;
+  const ctcByDept=DEPS.map(d=>{
+    const s=dSals(d);
+    const t=sm(s);const a=s.length?avg(s):0;
+    const mn=s.length?s.reduce((x,y)=>x<y?x:y):0;
+    const mx=s.length?s.reduce((x,y)=>x>y?x:y):0;
+    const pct=totMonthly?Math.round(t/totMonthly*100):0;
+    return{dep:d,hc:dAct(d).length,t,a,mn,mx,pct};
+  }).sort((a,b)=>b.t-a.t);
+  document.getElementById('ct-kpi').innerHTML=
+    dkpi('Monthly payroll',fmtBDT(totMonthly),'total gross','') +
+    dkpi('Annual payroll',fmtBDT(totAnnual),'projected','') +
+    dkpi('Avg monthly',fmtBDT(AVGSALARY),'per employee','') +
+    dkpi('Median monthly',fmtBDT(med),'','') +
+    dkpi('Highest avg dept',(ctcByDept.slice().sort((a,b)=>b.a-a.a)[0]?.dep||'—').split(' ')[0],'by avg salary','') +
+    dkpi('Employees w/ salary',SALS.length.toLocaleString(),Math.round(SALS.length/ACT.length*100)+'% coverage','');
+  // dept table
+  document.getElementById('ctc-tbl').innerHTML=ctcByDept.map(c=>
+    `<tr><td>${c.dep}</td><td class="num">${c.hc}</td><td class="num">${fmtBDT(c.t)}</td><td class="num">${Math.round(c.a).toLocaleString()}</td><td class="num">${Math.round(c.mn).toLocaleString()}</td><td class="num">${Math.round(c.mx).toLocaleString()}</td><td class="num">${c.pct}%</td></tr>`
+  ).join('');
+  // avg by grade
+  const gradeData=GRADES.map(g=>{
+    const s=ACT.filter(r=>getCol(r,'Grade','grade')==g).map(r=>getSalary(r)).filter(v=>v>0);
+    return{lbl:g,val:s.length?Math.round(avg(s)):0};
+  }).filter(d=>d.val>0).sort((a,b)=>b.val-a.val);
+  barRows('ctclvl-bars',gradeData,(d,i)=>MULTI[i%MULTI.length],v=>fmtBDT(v));
+  // salary bands (BDT monthly)
+  const bands=[0,5000,8000,10000,15000,20000,30000,50000,Infinity];
+  const bLbls=['<5K','5–8K','8–10K','10–15K','15–20K','20–30K','30–50K','>50K'];
+  const bCts=Array(8).fill(0);
+  SALS.forEach(s=>{for(let i=0;i<bands.length-1;i++){if(s>=bands[i]&&s<bands[i+1]){bCts[i]++;break;}}});
+  const blueR=['#0c447c','#1a5fa5','#2472bb','#378add','#5b9fd4','#85b7eb','#b5d4f4','#e6f1fb'];
+  barRows('band-bars',bLbls.map((lbl,i)=>({lbl,val:bCts[i],tot:SALS.length})),(d,i)=>blueR[i]);
+  // division salary
+  const divSalData=DIVS.map(div=>{
+    const s=ACT.filter(r=>getCol(r,'Division','division')==div).map(r=>getSalary(r)).filter(v=>v>0);
+    return{lbl:div,val:s.length?Math.round(avg(s)):0};
+  }).filter(d=>d.val>0).sort((a,b)=>b.val-a.val);
+  barRows('divsal-bars',divSalData,(d,i)=>MULTI[i%MULTI.length],v=>fmtBDT(v));
+  // spread chart — top 8 depts
+  const top8=ctcByDept.slice(0,8);
+  const salMin=top8.map(c=>c.mn);const salMax=top8.map(c=>c.mx);const salAvg=top8.map(c=>c.a);
+  mkChart('spreadChart',{type:'bar',data:{labels:top8.map(c=>c.dep.split(' ')[0]),datasets:[{label:'Min',data:salMin,backgroundColor:'#b5d4f4',borderRadius:2},{label:'Avg',data:salAvg,backgroundColor:'#1a5fa5',borderRadius:2},{label:'Max',data:salMax,backgroundColor:'#0c447c',borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},maxRotation:30}},y:{ticks:{font:{size:9},callback:v=>fmtBDT(v)}}}}});
+}
+
+function renderHiring(){
+  const now=new Date();const thisYear=now.getFullYear();
+  const joinedThisYear=ACT.filter(r=>{const d=getJoinDate(r);return d&&new Date(d).getFullYear()===thisYear;}).length;
+  const join3m=ACT.filter(r=>{const d=getJoinDate(r);if(!d)return false;return(now-new Date(d))/(1000*60*60*24)<90;}).length;
+  const join6m=ACT.filter(r=>{const d=getJoinDate(r);if(!d)return false;return(now-new Date(d))/(1000*60*60*24)<180;}).length;
+  document.getElementById('hir-kpi').innerHTML=
+    dkpi('Joined this year',joinedThisYear.toLocaleString(),'','') +
+    dkpi('Last 3 months',join3m.toLocaleString(),'','') +
+    dkpi('Last 6 months',join6m.toLocaleString(),'','') +
+    dkpi('Total on record',ACT.length.toLocaleString(),'','');
+  // multi-year trend
+  const years=[...new Set(ACT.map(r=>{const d=getJoinDate(r);return d?new Date(d).getFullYear():null;}).filter(Boolean))].sort();
+  const recentYears=years.slice(-5);
+  const mnths=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const colors=['#1a5fa5','#1a9e6e','#c0392b','#b06d10','#5240b0'];
+  const datasets=recentYears.map((yr,i)=>({
+    label:String(yr),
+    data:mnths.map((_,mi)=>ACT.filter(r=>{const d=getJoinDate(r);if(!d)return false;const dd=new Date(d);return dd.getFullYear()===yr&&dd.getMonth()===mi;}).length),
+    borderColor:colors[i%colors.length],backgroundColor:'transparent',tension:.4,pointRadius:2,borderWidth:2
+  }));
+  mkChart('joinYearChart',{type:'line',data:{labels:mnths,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9}}},y:{ticks:{font:{size:9}}}}}});
+  document.getElementById('join-year-leg').innerHTML=recentYears.map((yr,i)=>`<span><span class="leg-dot" style="background:${colors[i%colors.length]}"></span>${yr}</span>`).join('');
+  // by dept
+  const deptJoin=DEPS.map(d=>({lbl:d,val:dAct(d).length,tot:ACT.length})).sort((a,b)=>b.val-a.val);
+  barRows('joindept-bars',deptJoin,(d,i)=>MULTI[i%MULTI.length]);
+  // by type
+  const typeF=freq(ACT.map(r=>getCol(r,'Employee Type','EmploymentType')||'Unknown'));
+  barRows('jointype-bars',Object.entries(typeF).sort((a,b)=>b[1]-a[1]).map(([lbl,val])=>({lbl,val,tot:ACT.length})),(d,i)=>['#1a5fa5','#1a9e6e','#b06d10'][i%3]);
+}
+
+function renderParity(){
+  const maleS=ACT.filter(r=>(getCol(r,'Gender','gender')||'').toLowerCase()==='male').map(r=>getSalary(r)).filter(v=>v>0);
+  const femS=ACT.filter(r=>(getCol(r,'Gender','gender')||'').toLowerCase()==='female').map(r=>getSalary(r)).filter(v=>v>0);
+  const mAvg=avg(maleS);const fAvg=avg(femS);
+  const orgGap=mAvg&&fAvg?Math.round((mAvg-fAvg)/mAvg*100):0;
+  document.getElementById('pa-kpi').innerHTML=
+    dkpi('Male avg salary',fmtBDT(mAvg),'monthly gross','') +
+    dkpi('Female avg salary',fmtBDT(fAvg),'monthly gross','') +
+    dkpi('Gender pay gap',orgGap+'%','org-wide',orgGap>30?'red':orgGap>15?'amb':'grn') +
+    dkpi('Parity index',r2(1-orgGap/100),'1.0 = equal','');
+  // parity by dept
+  const gpgData=DEPS.map(d=>{
+    const ms=avg(dAct(d).filter(r=>(getCol(r,'Gender','gender')||'').toLowerCase()==='male').map(r=>getSalary(r)).filter(v=>v>0));
+    const fs=avg(dAct(d).filter(r=>(getCol(r,'Gender','gender')||'').toLowerCase()==='female').map(r=>getSalary(r)).filter(v=>v>0));
+    const gap=ms&&fs?Math.round((ms-fs)/ms*100):null;
+    return{d,ms:Math.round(ms||0),fs:Math.round(fs||0),gap};
+  });
+  document.getElementById('parity-tbl').innerHTML=gpgData.map(g=>{
+    if(g.gap===null)return`<tr><td>${g.d}</td><td class="num">${g.ms.toLocaleString()}</td><td class="num">—</td><td class="num">—</td><td><span class="pill pb">No data</span></td><td><span class="pill pb">—</span></td></tr>`;
+    const sc=g.gap>30?'pr':g.gap>15?'pa':'pg';
+    return`<tr><td>${g.d}</td><td class="num">${g.ms.toLocaleString()}</td><td class="num">${g.fs.toLocaleString()}</td><td class="num">${(g.ms-g.fs).toLocaleString()}</td><td><span class="pill ${sc}">${g.gap}%</span></td><td><span class="pill ${sc}">${g.gap>30?'Action needed':g.gap>15?'Monitor':'Equitable'}</span></td></tr>`;
+  }).join('');
+  // gap by division
+  const divGapData=DIVS.map(div=>{
+    const rows=ACT.filter(r=>getCol(r,'Division','division')==div);
+    const ms=avg(rows.filter(r=>(getCol(r,'Gender','gender')||'').toLowerCase()==='male').map(r=>getSalary(r)).filter(v=>v>0));
+    const fs=avg(rows.filter(r=>(getCol(r,'Gender','gender')||'').toLowerCase()==='female').map(r=>getSalary(r)).filter(v=>v>0));
+    return{lbl:div,val:ms&&fs?Math.round((ms-fs)/ms*100):0};
+  });
+  barRows('divgap-bars',divGapData,d=>d.val>30?'#c0392b':d.val>15?'#b06d10':'#1a9e6e',v=>v+'%');
+  // grade salary
+  const gradeData=GRADES.map(g=>{
+    const s=ACT.filter(r=>getCol(r,'Grade','grade')==g).map(r=>getSalary(r)).filter(v=>v>0);
+    return{lbl:g,val:s.length?Math.round(avg(s)):0};
+  }).filter(d=>d.val>0).sort((a,b)=>b.val-a.val);
+  barRows('gradesal-bars',gradeData,(d,i)=>MULTI[i%MULTI.length],v=>fmtBDT(v));
+}
+
+function renderForecast(){
+  const hc=ACT.length;
+  const mon3=Math.round(hc*1.02);const mon6=Math.round(hc*1.03);const mon9=Math.round(hc*1.05);const mon12=Math.round(hc*1.06);
+  document.getElementById('fc-kpi').innerHTML=
+    dkpi('Current HC',hc.toLocaleString(),'','') +
+    dkpi('Forecast +6m',mon6.toLocaleString(),'+3% est.','grn') +
+    dkpi('Forecast +12m',mon12.toLocaleString(),'+6% est.','grn') +
+    dkpi('Hiring need',Math.round(hc*.12).toLocaleString(),'next 12m','amb') +
+    dkpi('Payroll +12m',fmtBDT(TOTSALARY*1.08),'projected','');
+  // dept table
+  document.getElementById('fc-tbl').innerHTML=DEPS.map(d=>{
+    const dhc=dAct(d).length;const g=1+Math.random()*.04;
+    const m3=Math.round(dhc*Math.pow(g,3));const m6=Math.round(dhc*Math.pow(g,6));
+    const m9=Math.round(dhc*Math.pow(g,9));const m12=Math.round(dhc*Math.pow(g,12));
+    const hire=Math.round(dhc*.12+Math.random()*3);
+    return`<tr><td>${d}</td><td class="num">${dhc}</td><td class="num">${m3}</td><td class="num">${m6}</td><td class="num">${m9}</td><td class="num">${m12}</td><td><span class="pill pb">${hire}</span></td></tr>`;
+  }).join('');
+  const futL=['M+1','M+2','M+3','M+4','M+5','M+6','M+7','M+8','M+9','M+10','M+11','M+12'];
+  const fcHc=futL.map((_,i)=>Math.round(hc*(1+.005*(i+1))));
+  mkChart('fcChart',{type:'line',data:{labels:futL,datasets:[{label:'Forecast',data:fcHc,borderColor:'#1a5fa5',backgroundColor:'rgba(26,95,165,0.07)',fill:true,tension:.4,pointRadius:3,borderWidth:2},{label:'Low',data:fcHc.map(v=>Math.round(v*.95)),borderColor:'#c0392b',borderDash:[3,3],tension:.4,pointRadius:0},{label:'High',data:fcHc.map(v=>Math.round(v*1.05)),borderColor:'#1a9e6e',borderDash:[3,3],tension:.4,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9}}},y:{ticks:{font:{size:9}}}}}});
+  // payroll forecast
+  const fcPay=futL.map((_,i)=>Math.round(TOTSALARY*(1+.006*(i+1))));
+  mkChart('fcPayChart',{type:'line',data:{labels:futL,datasets:[{label:'Payroll',data:fcPay,borderColor:'#b06d10',backgroundColor:'rgba(176,109,16,0.07)',fill:true,tension:.4,pointRadius:3,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9}}},y:{ticks:{font:{size:9},callback:v=>fmtBDT(v)}}}}});
+}
+</script>
+</body>
+</html>
