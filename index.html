@@ -422,7 +422,7 @@ function handleFile(e){
   const file=e.target.files[0];if(!file)return;
   const ext=file.name.split('.').pop().toLowerCase();
   if(ext==='csv'){Papa.parse(file,{header:true,skipEmptyLines:true,complete:r=>process(r.data)});}
-  else{const rd=new FileReader();rd.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'binary'});process(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:false}));};rd.readAsBinaryString(file);}
+  else{const rd=new FileReader();rd.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'binary'});process(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:true}));};rd.readAsBinaryString(file);}
 }
 
 // ── DEMO DATA ──
@@ -475,8 +475,12 @@ function getSalary(r){
   const keys=['monthly gross salary','gross salary','monthly salary','salary','ctc','basic salary','compensation','pay','fixed pay','total pay'];
   for(const k of keys){
     const f=Object.keys(r).find(rk=>rk.trim().toLowerCase()===k);
-    if(f!==undefined&&r[f]!==undefined&&r[f]!==null&&String(r[f]).trim()!=='--'){
-      const v=parseFloat(String(r[f]).replace(/[,\s৳$₹ ]/g,''));
+    if(f!==undefined&&r[f]!==undefined&&r[f]!==null){
+      const raw=r[f];
+      if(typeof raw==='number'&&raw>0)return raw;
+      // Strip currency codes, symbols, commas, spaces: "BDT 6,000.00" -> 6000
+      const cleaned=String(raw).replace(/[A-Za-z৳$₹,\s]/g,'').trim();
+      const v=parseFloat(cleaned);
       if(!isNaN(v)&&v>0)return v;
     }
   }
